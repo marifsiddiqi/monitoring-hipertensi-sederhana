@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitoring Hipertensi</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-5">
+    <div class="container mx-auto px-4">
+        <!-- Form Input -->
+        <div class="bg-white shadow-md rounded p-6 mb-6">
+            <h2 class="text-2xl font-semibold mb-4">Form Input Data</h2>
+            <form id="dataForm" class="space-y-4">
+                <div>
+                    <label for="name" class="block text-gray-700">Nama</label>
+                    <input type="text" id="name" class="w-full mt-1 p-2 border rounded" placeholder="Masukkan Nama" required>
+                </div>
+                <div>
+                    <label for="date" class="block text-gray-700">Tanggal</label>
+                    <input type="date" id="date" class="w-full mt-1 p-2 border rounded" required>
+                </div>
+                <div>
+                    <label for="time" class="block text-gray-700">Jam</label>
+                    <input type="time" id="time" class="w-full mt-1 p-2 border rounded" required>
+                </div>
+                <div>
+                    <label for="tensi" class="block text-gray-700">Tensi</label>
+                    <input type="text" id="tensi" class="w-full mt-1 p-2 border rounded" placeholder="Contoh: 120/80" required>
+                </div>
+                <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Tambah Data</button>
+            </form>
+        </div>
+
+        <!-- Grafik -->
+        <div class="bg-white shadow-md rounded p-6 mb-6">
+            <h2 class="text-2xl font-semibold mb-4">Grafik Tensi</h2>
+            <div class="relative w-full h-64">
+                <canvas id="tensiChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Tabel Data -->
+        <div class="bg-white shadow-md rounded p-6 overflow-auto">
+            <h2 class="text-2xl font-semibold mb-4">Tabel Data</h2>
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr>
+                        <th class="border-b p-2">Nama</th>
+                        <th class="border-b p-2">Tanggal</th>
+                        <th class="border-b p-2">Jam</th>
+                        <th class="border-b p-2">Tensi</th>
+                        <th class="border-b p-2">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody id="dataTable">
+                    <!-- Data rows will be dynamically added here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('dataForm');
+        const tensiChartCtx = document.getElementById('tensiChart').getContext('2d');
+        const dataTable = document.getElementById('dataTable');
+
+        console.log('Initializing chart data...');
+
+        // Load data from local storage
+        let chartData = JSON.parse(localStorage.getItem('chartData')) || {
+            labels: [],
+            datasets: [{
+                label: 'Tensi (mmHg)',
+                data: [],
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                borderColor: 'rgba(75, 192, 192, 1)',
+                borderWidth: 1
+            }]
+        };
+
+        let tableData = JSON.parse(localStorage.getItem('tableData')) || [];
+
+        // Inisialisasi grafik
+        const tensiChart = new Chart(tensiChartCtx, {
+            type: 'line',
+            data: chartData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 120, // Set maximum y-axis value
+                        min: 80,
+                        stacked: true
+                    }
+                }
+            }
+        });
+
+        console.log('Chart initialized:', tensiChart);
+
+        // Render tabel data
+        function renderTable() {
+            dataTable.innerHTML = '';
+            tableData.forEach((row, index) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="border-b p-2">${row.name}</td>
+                    <td class="border-b p-2">${row.date}</td>
+                    <td class="border-b p-2">${row.time}</td>
+                    <td class="border-b p-2">${row.tensi}</td>
+                    <td class="border-b p-2">
+                        <button class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600" onclick="deleteRow(${index})">Hapus</button>
+                    </td>
+                `;
+                dataTable.appendChild(tr);
+            });
+        }
+
+        renderTable();
+
+        // Fungsi untuk menambah data ke grafik dan tabel
+        form.addEventListener('submit', function (event) {
+            event.preventDefault();
+
+            console.log('Form submission triggered');
+
+            const name = document.getElementById('name').value;
+            const date = document.getElementById('date').value;
+            const time = document.getElementById('time').value;
+            const tensi = document.getElementById('tensi').value;
+
+            console.log('Form data received:', { name, date, time, tensi });
+
+            // Tambahkan data ke grafik
+            chartData.labels.push(`${date} / ${time}`);
+            const tensiValue = parseInt(tensi.split('/')[0]); // Ambil nilai sistolik
+            chartData.datasets[0].data.push(tensiValue);
+
+            // Tambahkan data ke tabel
+            tableData.push({ name, date, time, tensi });
+
+            // Simpan data ke local storage
+            localStorage.setItem('chartData', JSON.stringify(chartData));
+            localStorage.setItem('tableData', JSON.stringify(tableData));
+
+            console.log('Data saved to local storage');
+
+            // Perbarui grafik
+            tensiChart.update();
+            console.log('Chart updated');
+
+            // Render ulang tabel
+            renderTable();
+
+            // Reset form
+            form.reset();
+            console.log('Form reset');
+        });
+
+        // Fungsi untuk menghapus data
+        function deleteRow(index) {
+            console.log('Deleting row at index:', index);
+
+            // Hapus data dari tabel dan grafik
+            tableData.splice(index, 1);
+            chartData.labels.splice(index, 1);
+            chartData.datasets[0].data.splice(index, 1);
+
+            // Simpan perubahan ke local storage
+            localStorage.setItem('chartData', JSON.stringify(chartData));
+            localStorage.setItem('tableData', JSON.stringify(tableData));
+
+            // Render ulang tabel dan grafik
+            renderTable();
+            tensiChart.update();
+
+            console.log('Row deleted and updates applied');
+        }
+    </script>
+</body>
+</html>
